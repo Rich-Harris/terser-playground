@@ -1,7 +1,11 @@
 <script>
 	import { zip } from 'gzip-js';
 
-	let input = 'const answer = 42;';
+	let input = `(function() {
+  const a = 1;
+  const b = 2;
+  console.log(a + b);
+}());`;
 	let error = null;
 	let output = '';
 	let inputGzLen = 0;
