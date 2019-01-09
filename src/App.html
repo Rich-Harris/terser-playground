@@ -1,9 +1,7 @@
 <script>
-	import { beforeUpdate } from 'svelte';
 	import { zip } from 'gzip-js';
 
 	let input = 'const answer = 42;';
-	let lastInput = input;
 	let error = null;
 	let output = '';
 	let inputGzLen = 0;
@@ -11,6 +9,7 @@
 
 	$: inputGzLen = zip(input).length;
 	$: outputGzLen = zip(output || '').length;
+	$: minify(input);
 
 	function fmt(num) {
 		if (num < 0) return `${num}`.substr(0, 5);
@@ -24,11 +23,10 @@
 	let current_token;
 
 	const minify = () => {
-		lastInput = input;
 		if (!input) {
 			output = '';
 		}
-		
+
 		else {
 			const token = uid++;
 			worker.postMessage({ input, token });
@@ -45,10 +43,6 @@
 			error = event.data.error;
 			outputGzLen = zip(output || '').length;
 		}
-	});
-
-	beforeUpdate(() => {
-		if (input !== lastInput) minify();
 	});
 </script>
 
