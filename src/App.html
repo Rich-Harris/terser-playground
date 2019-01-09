@@ -1,7 +1,54 @@
-<div class="playground">
-	<textarea class="input" bind:value=input></textarea>
-	<textarea class="output" class:error readonly value={error ? error.message : code}></textarea>
-</div>
+<script>
+	import { zip } from 'gzip-js';
+
+	let input = `(function() {
+  const a = 1;
+  const b = 2;
+  console.log(a + b);
+}());`;
+	let error = null;
+	let output = '';
+	let inputGzLen = 0;
+	let outputGzLen = 0;
+
+	$: inputGzLen = zip(input).length;
+	$: outputGzLen = zip(output || '').length;
+	$: minify(input);
+
+	function fmt(num) {
+		if (num < 0) return `${num}`.substr(0, 5);
+		num = Math.round(num * 100) / 100;
+		return `${num}`.replace(/(\d)(?=(\d\d\d)+(?!\d))/g, "$1,");
+	}
+
+	const worker = new Worker('worker.js');
+
+	let uid = 1;
+	let current_token;
+
+	const minify = () => {
+		if (!input) {
+			output = '';
+		}
+
+		else {
+			const token = uid++;
+			worker.postMessage({ input, token });
+		}
+	};
+
+	worker.addEventListener('message', event => {
+		if (event.data.ready) {
+			minify();
+		}
+
+		else if (event.data.token === current_token) {
+			output = event.data.code || '';
+			error = event.data.error;
+			outputGzLen = zip(output || '').length;
+		}
+	});
+</script>
 
 <style>
 	.playground {
@@ -9,6 +56,7 @@
 		height: 100%;
 		display: grid;
 		grid-template-columns: 1fr 1fr;
+		grid-template-rows: 1fr 1em;
 		grid-gap: 0.5em;
 	}
 
@@ -29,46 +77,8 @@
 	}
 </style>
 
-<script>
-	export default {
-		data() {
-			return {
-				input: 'const answer = 42;',
-				code: ''
-			};
-		},
-
-		oncreate() {
-			const worker = new Worker('worker.js');
-
-			const callbacks = {};
-			let uid = 1;
-			let current_token;
-
-			const minify = () => {
-				const { input } = this.get();
-				const token = uid++;
-				worker.postMessage({ input, token });
-			};
-
-			worker.addEventListener('message', event => {
-				if (event.data.ready) {
-					this.set({ ready: true });
-					minify();
-				}
-
-				else if (event.data.token === current_token) {
-					this.set({
-						code: event.data.code,
-						warnings: event.data.warnings,
-						error: event.data.error
-					});
-				}
-			});
-
-			this.on('state', async ({ changed, current }) => {
-				if (changed.input) minify();
-			});
-		}
-	};
-</script>
+<div class="playground">
+	<textarea class="input" bind:value={input}></textarea>
+	<textarea class="output" class:error readonly value={error ? error.message : output}></textarea>
+	<div>{fmt(input.length / 1024)} KiB plain : {fmt(inputGzLen / 1024)} KiB gzipped</div><div>{error ? '' : `${fmt(output.length / 1024)} KiB plain : ${fmt(outputGzLen / 1024)} KiB gzipped`}</div>
+</div>
