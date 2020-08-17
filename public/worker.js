@@ -1,4 +1,4 @@
-importScripts('https://unpkg.com/terser');
+importScripts('https://unpkg.com/terser@5');
 
 self.postMessage({ ready: true });
 
@@ -7,5 +7,5 @@ self.addEventListener('message', event => {
 		// TODO support options
 	});
 
-	self.postMessage(result);
+	result.then(data => self.postMessage(data));
 });
